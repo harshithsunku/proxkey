@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-type Tab = "hosts" | "keys" | "audit";
+type Tab = "dashboard" | "hosts" | "keys" | "audit";
 
 interface AppState {
   activeTab: Tab;
@@ -12,7 +12,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  activeTab: "hosts",
+  activeTab: "dashboard",
   setActiveTab: (tab) => set({ activeTab: tab }),
   selectedHosts: [],
   toggleHost: (vmid) =>

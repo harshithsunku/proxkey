@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { KeyRound, Server, ScrollText } from "lucide-react";
+import { LayoutDashboard, KeyRound, Server, ScrollText } from "lucide-react";
 import { useAppStore } from "./store/app";
+import { Dashboard } from "./components/Dashboard";
 import { HostGrid } from "./components/HostGrid";
 import { KeyManager } from "./components/KeyManager";
 import { AuditLog } from "./components/AuditLog";
@@ -13,6 +14,7 @@ const queryClient = new QueryClient({
 });
 
 const tabs = [
+  { id: "dashboard" as const, label: "Dashboard", icon: LayoutDashboard },
   { id: "hosts" as const, label: "Hosts", icon: Server },
   { id: "keys" as const, label: "SSH Keys", icon: KeyRound },
   { id: "audit" as const, label: "Audit Log", icon: ScrollText },
@@ -62,6 +64,7 @@ function AppContent() {
 
       {/* Content */}
       <main className="mx-auto max-w-7xl px-4 py-6">
+        {activeTab === "dashboard" && <Dashboard />}
         {activeTab === "hosts" && (
           <div className="space-y-4">
             <DeployPanel />

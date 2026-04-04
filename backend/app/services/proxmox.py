@@ -32,6 +32,51 @@ def reset_client():
     _client = None
 
 
+def _get_lxc_ips(node: str, vmid: int) -> list[str]:
+    """Get IP addresses for a running LXC container via Proxmox API."""
+    px = get_client()
+    ips: list[str] = []
+    try:
+        interfaces = px.nodes(node).lxc(vmid).interfaces.get()
+        for iface in interfaces:
+            if iface.get("name") == "lo":
+                continue
+            hwaddr = iface.get("inet", "")
+            if hwaddr:
+                # inet field is "ip/cidr"
+                ip = hwaddr.split("/")[0]
+                if ip:
+                    ips.append(ip)
+            inet6 = iface.get("inet6", "")
+            if inet6:
+                ip6 = inet6.split("/")[0]
+                if ip6 and not ip6.startswith("fe80"):
+                    ips.append(ip6)
+    except Exception as e:
+        logger.debug("Could not get interfaces for CT %d: %s", vmid, e)
+    return ips
+
+
+def _get_qemu_ips(node: str, vmid: int) -> list[str]:
+    """Get IP addresses for a running QEMU VM via guest agent."""
+    px = get_client()
+    ips: list[str] = []
+    try:
+        result = px.nodes(node).qemu(vmid).agent("network-get-interfaces").get()
+        for iface in result.get("result", []):
+            if iface.get("name") == "lo":
+                continue
+            for addr in iface.get("ip-addresses", []):
+                ip = addr.get("ip-address", "")
+                if ip and addr.get("ip-address-type") == "ipv4":
+                    ips.append(ip)
+                elif ip and addr.get("ip-address-type") == "ipv6" and not ip.startswith("fe80"):
+                    ips.append(ip)
+    except Exception as e:
+        logger.debug("Could not get IPs for VM %d (guest agent may not be running): %s", vmid, e)
+    return ips
+
+
 def discover_lxc(node: str | None = None) -> list[HostInfo]:
     """List all LXC containers on the given node (or default node)."""
     px = get_client()
@@ -51,9 +96,12 @@ def discover_lxc(node: str | None = None) -> list[HostInfo]:
         except ValueError:
             status = HostStatus.unknown
 
+        vmid = int(ct["vmid"])
+        ip_addresses = _get_lxc_ips(node, vmid) if status == HostStatus.running else []
+
         hosts.append(
             HostInfo(
-                vmid=int(ct["vmid"]),
+                vmid=vmid,
                 name=ct.get("name", f"CT-{ct['vmid']}"),
                 host_type=HostType.lxc,
                 status=status,
@@ -62,6 +110,7 @@ def discover_lxc(node: str | None = None) -> list[HostInfo]:
                 memory_mb=int(ct.get("maxmem", 0)) // (1024 * 1024),
                 disk_gb=round(int(ct.get("maxdisk", 0)) / (1024**3), 1),
                 uptime=int(ct.get("uptime", 0)),
+                ip_addresses=ip_addresses,
             )
         )
 
@@ -87,9 +136,12 @@ def discover_qemu(node: str | None = None) -> list[HostInfo]:
         except ValueError:
             status = HostStatus.unknown
 
+        vmid = int(vm["vmid"])
+        ip_addresses = _get_qemu_ips(node, vmid) if status == HostStatus.running else []
+
         hosts.append(
             HostInfo(
-                vmid=int(vm["vmid"]),
+                vmid=vmid,
                 name=vm.get("name", f"VM-{vm['vmid']}"),
                 host_type=HostType.qemu,
                 status=status,
@@ -98,6 +150,7 @@ def discover_qemu(node: str | None = None) -> list[HostInfo]:
                 memory_mb=int(vm.get("maxmem", 0)) // (1024 * 1024),
                 disk_gb=round(int(vm.get("maxdisk", 0)) / (1024**3), 1),
                 uptime=int(vm.get("uptime", 0)),
+                ip_addresses=ip_addresses,
             )
         )
 
@@ -164,6 +217,69 @@ def exec_lxc(node: str, vmid: int, command: str) -> str:
     if proc.returncode != 0:
         raise RuntimeError(f"Remote pct exec failed: {proc.stderr.strip()}")
     return proc.stdout.strip()
+
+
+def exec_qemu(node: str, vmid: int, command: str) -> str:
+    """Run a command inside a running QEMU VM via guest agent.
+
+    Tries in order:
+    1. Local `qm guest exec` (when running on the Proxmox host)
+    2. SSH to the Proxmox host and run `qm guest exec` remotely
+    """
+    import shutil
+    import subprocess
+    import json
+
+    px = get_client()
+    # Verify VM is running
+    try:
+        result = px.nodes(node).qemu(vmid).status.current.get()
+        if result.get("status") != "running":
+            raise RuntimeError(f"VM {vmid} is not running (status={result.get('status')})")
+    except RuntimeError:
+        raise
+    except Exception as e:
+        raise RuntimeError(f"Cannot reach VM {vmid}: {e}") from e
+
+    # Try local qm first
+    if shutil.which("qm"):
+        proc = subprocess.run(
+            ["qm", "guest", "exec", str(vmid), "--", "bash", "-c", command],
+            capture_output=True, text=True, timeout=30,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError(f"qm guest exec failed: {proc.stderr.strip()}")
+        # qm guest exec returns JSON with out-data
+        try:
+            data = json.loads(proc.stdout)
+            return data.get("out-data", "").strip()
+        except json.JSONDecodeError:
+            return proc.stdout.strip()
+
+    # Fallback: SSH to the Proxmox host
+    s = get_settings()
+    if not s.proxmox_ssh_password:
+        raise RuntimeError(
+            "qm not found locally and PROXMOX_SSH_PASSWORD not set. "
+            "Either run ProxKey on the Proxmox host or configure SSH credentials."
+        )
+
+    remote_cmd = f"qm guest exec {vmid} -- bash -c '{command}'"
+    ssh_cmd = [
+        "sshpass", "-p", s.proxmox_ssh_password,
+        "ssh", "-o", "StrictHostKeyChecking=no",
+        "-p", str(s.proxmox_ssh_port),
+        f"{s.proxmox_ssh_user}@{s.proxmox_host}",
+        remote_cmd,
+    ]
+    proc = subprocess.run(ssh_cmd, capture_output=True, text=True, timeout=30)
+    if proc.returncode != 0:
+        raise RuntimeError(f"Remote qm guest exec failed: {proc.stderr.strip()}")
+    try:
+        data = json.loads(proc.stdout)
+        return data.get("out-data", "").strip()
+    except json.JSONDecodeError:
+        return proc.stdout.strip()
 
 
 def test_connection() -> dict:

@@ -89,6 +89,7 @@ class HostInfo(SQLModel):
     memory_mb: int = 0
     disk_gb: float = 0
     uptime: int = 0
+    ip_addresses: list[str] = []
     deploy_status: Optional[DeployStatus] = None
     deployed_keys: int = 0
 
@@ -99,8 +100,44 @@ class DeployRequest(SQLModel):
     user: str = "root"
 
 
+class RevokeRequest(SQLModel):
+    key_id: int
+    host_vmids: list[int]
+    user: str = "root"
+
+
 class DeployResult(SQLModel):
     vmid: int
     host_name: str
     success: bool
     message: str
+
+
+class HostKeyEntry(SQLModel):
+    key_id: int
+    key_name: str
+    fingerprint: str
+    is_default: bool
+    deployed_at: Optional[datetime] = None
+    status: DeployStatus
+
+
+class HostKeysResponse(SQLModel):
+    vmid: int
+    host_name: str
+    keys: list[HostKeyEntry] = []
+
+
+class StatsResponse(SQLModel):
+    total_hosts: int = 0
+    running_hosts: int = 0
+    stopped_hosts: int = 0
+    lxc_count: int = 0
+    qemu_count: int = 0
+    total_keys: int = 0
+    default_keys: int = 0
+    total_deployments: int = 0
+    successful_deployments: int = 0
+    failed_deployments: int = 0
+    hosts_with_keys: int = 0
+    coverage_percent: float = 0

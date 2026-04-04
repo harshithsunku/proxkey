@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, useQueries } from "@tanstack/react-query";
 import * as api from "./client";
-import type { SSHKeyCreate, DeployRequest } from "./types";
+import type { SSHKeyCreate, DeployRequest, RevokeRequest } from "./types";
 
 // Hosts
 export function useHosts() {
@@ -40,11 +40,41 @@ export function useDeploy() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hosts"] });
       qc.invalidateQueries({ queryKey: ["audit"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
     },
+  });
+}
+
+// Revoke
+export function useRevoke() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: RevokeRequest) => api.revokeKey(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hosts"] });
+      qc.invalidateQueries({ queryKey: ["audit"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+    },
+  });
+}
+
+// Host Keys (batch)
+export function useHostKeys(vmids: number[]) {
+  return useQueries({
+    queries: vmids.map((vmid) => ({
+      queryKey: ["hostKeys", vmid],
+      queryFn: () => api.fetchHostKeys(vmid),
+      enabled: vmids.length > 0,
+    })),
   });
 }
 
 // Audit
 export function useAuditLog() {
   return useQuery({ queryKey: ["audit"], queryFn: api.fetchAuditLog });
+}
+
+// Stats
+export function useStats() {
+  return useQuery({ queryKey: ["stats"], queryFn: api.fetchStats, refetchInterval: 30000 });
 }
