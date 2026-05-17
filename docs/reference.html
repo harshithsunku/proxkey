@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reference &middot; ProxKey</title>
+<meta name="description" content="ProxKey reference: environment variables, HTTP API endpoints, Proxmox token setup, Docker deployment, and troubleshooting.">
+<meta property="og:title" content="Reference · ProxKey">
+<meta property="og:description" content="Environment variables, HTTP API endpoints, Proxmox token setup, deployment, troubleshooting.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://harshithsunku.github.io/proxkey/reference.html">
+<meta property="og:image" content="https://harshithsunku.github.io/proxkey/hero.svg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Reference · ProxKey">
+<meta name="twitter:description" content="Environment variables, HTTP API, Proxmox token setup, deployment, troubleshooting.">
+<meta name="twitter:image" content="https://harshithsunku.github.io/proxkey/hero.svg">
+<meta name="theme-color" content="#0f1117">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2338bdf8'/%3E%3Cpath fill='%230f1117' d='M11 9.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm0 2a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm3.6 1.5h9.4v2.5h-2v2h-2v-2h-2v2.5h-2v-2.5h-1.4a5.55 5.55 0 0 0 0-2.5z'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<nav class="topnav">
+    <div class="topnav-inner">
+        <a class="brand" href="./">Prox<span class="a">Key</span></a>
+        <div class="topnav-links">
+            <a href="index.html#features">Features</a>
+            <a href="index.html#quickstart">Quick start</a>
+            <a href="architecture.html">Architecture</a>
+            <a href="reference.html" class="active">Reference</a>
+            <a href="https://github.com/harshithsunku/proxkey" target="_blank" rel="noopener">GitHub</a>
+        </div>
+        <div class="topnav-right">
+            <a class="btn btn-ghost" href="https://github.com/harshithsunku/proxkey/releases/latest" target="_blank" rel="noopener">Download</a>
+            <button class="theme-btn" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="4"></circle>
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<div class="layout-with-toc">
+    <main class="prose">
+        <span class="eyebrow">Reference</span>
+        <h1 style="font-size: clamp(32px, 4vw, 44px); margin-bottom: 12px;">Reference</h1>
+        <p class="lead" style="margin-bottom: 36px;">
+            Environment variables, HTTP API endpoints, Proxmox token setup, Docker
+            deployment, and the usual things to check when something looks off.
+        </p>
+
+        <h2 id="env">Environment variables</h2>
+        <p>
+            ProxKey reads everything from <code>.env</code>. See
+            <a href="https://github.com/harshithsunku/proxkey/blob/main/.env.example"><code>.env.example</code></a>
+            for the annotated list.
+        </p>
+        <table class="ref">
+            <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
+            <tbody>
+                <tr><td><code>PROXMOX_HOST</code></td><td>&mdash;</td><td>Proxmox server IP or hostname.</td></tr>
+                <tr><td><code>PROXMOX_PORT</code></td><td><code>8006</code></td><td>Proxmox API port.</td></tr>
+                <tr><td><code>PROXMOX_VERIFY_SSL</code></td><td><code>false</code></td><td>Verify TLS certs. Leave off for self-signed PVE certs.</td></tr>
+                <tr><td><code>PROXMOX_TOKEN_ID</code></td><td>&mdash;</td><td>API token ID, formatted as <code>user@realm!tokenname</code>.</td></tr>
+                <tr><td><code>PROXMOX_TOKEN_SECRET</code></td><td>&mdash;</td><td>API token secret.</td></tr>
+                <tr><td><code>PROXMOX_NODE</code></td><td><code>pve</code></td><td>Default node name to query.</td></tr>
+                <tr><td><code>PROXMOX_SSH_USER</code></td><td><code>root</code></td><td>SSH user on the PVE node (remote mode only).</td></tr>
+                <tr><td><code>PROXMOX_SSH_PASSWORD</code></td><td>&mdash;</td><td>Password for the PVE node. Only needed when ProxKey runs <em>off</em> the node and must SSH in.</td></tr>
+                <tr><td><code>PROXMOX_SSH_PORT</code></td><td><code>22</code></td><td>SSH port on the PVE node (remote mode only).</td></tr>
+                <tr><td><code>SECRET_KEY</code></td><td>&mdash;</td><td>Random string used to sign internal tokens. Change before production.</td></tr>
+                <tr><td><code>CORS_ORIGINS</code></td><td><code>http://localhost:5173,http://localhost:8080</code></td><td>Comma-separated list of allowed UI origins.</td></tr>
+            </tbody>
+        </table>
+
+        <h2 id="token">Proxmox API token setup</h2>
+        <p>
+            On the Proxmox node, create a user and a token with just enough
+            permission to discover hosts and exec inside them.
+        </p>
+<pre><code>pveum user add proxkey@pve
+pveum aclmod /        -user proxkey@pve -role PVEAuditor
+pveum aclmod /vms     -user proxkey@pve -role PVEAdmin
+pveum user token add proxkey@pve proxkey --privsep 0
+# copy the printed secret → PROXMOX_TOKEN_SECRET in .env</code></pre>
+        <p>
+            Token format on the ProxKey side is the full identifier:
+            <code>proxkey@pve!proxkey</code>.
+        </p>
+
+        <h2 id="http-api">HTTP API</h2>
+        <p>
+            Live Swagger at <code>http://&lt;backend&gt;:8000/docs</code>. The
+            endpoints below are the contract the frontend depends on.
+        </p>
+        <table class="ref">
+            <thead><tr><th>Endpoint</th><th>Method</th><th>Description</th></tr></thead>
+            <tbody>
+                <tr><td><code>/api/health</code></td><td>GET</td><td>Health check (200 if the process is up).</td></tr>
+                <tr><td><code>/api/hosts</code></td><td>GET</td><td>List all LXC + QEMU hosts with status, type, and IP when running.</td></tr>
+                <tr><td><code>/api/hosts/connection</code></td><td>GET</td><td>Test the Proxmox API token + connectivity.</td></tr>
+                <tr><td><code>/api/hosts/{vmid}/keys</code></td><td>GET</td><td>Inspect deployed keys inside a single host.</td></tr>
+                <tr><td><code>/api/keys</code></td><td>GET</td><td>List stored SSH public keys.</td></tr>
+                <tr><td><code>/api/keys</code></td><td>POST</td><td>Add an SSH public key.</td></tr>
+                <tr><td><code>/api/keys/{id}</code></td><td>PUT</td><td>Update key label or scope.</td></tr>
+                <tr><td><code>/api/keys/{id}</code></td><td>DELETE</td><td>Remove a key from the library.</td></tr>
+                <tr><td><code>/api/deploy</code></td><td>POST</td><td>Deploy one or more keys to one or more hosts.</td></tr>
+                <tr><td><code>/api/deploy/revoke</code></td><td>POST</td><td>Revoke a key from one or more hosts.</td></tr>
+                <tr><td><code>/api/deploy/stats</code></td><td>GET</td><td>Dashboard statistics.</td></tr>
+                <tr><td><code>/api/deploy/status</code></td><td>GET</td><td>Full deployment record list.</td></tr>
+                <tr><td><code>/api/deploy/audit</code></td><td>GET</td><td>Audit log.</td></tr>
+                <tr><td><code>/api/hooks/lxc-started</code></td><td>POST</td><td>Hookscript receiver — auto-injects global keys.</td></tr>
+            </tbody>
+        </table>
+
+        <h2 id="hookscript">Hookscript for auto-inject</h2>
+        <p>
+            Drop this on the Proxmox node, then attach it to whichever containers
+            should auto-receive global keys.
+        </p>
+<pre><code>cat &gt; /var/lib/vz/snippets/proxkey-hook.sh &lt;&lt;'EOF'
+#!/bin/bash
+VMID="$1"
+PHASE="$2"
+[ "$PHASE" = "post-start" ] || exit 0
+curl -fsS -X POST "http://proxkey-host:8000/api/hooks/lxc-started" \
+     -H "Content-Type: application/json" \
+     -d "{\"vmid\": ${VMID}}" || true
+EOF
+chmod +x /var/lib/vz/snippets/proxkey-hook.sh
+
+pct set &lt;vmid&gt; --hookscript local:snippets/proxkey-hook.sh</code></pre>
+
+        <h2 id="deploy">Docker deployment</h2>
+<pre><code>git clone https://github.com/harshithsunku/proxkey.git
+cd proxkey
+cp .env.example .env
+# edit .env with your Proxmox credentials
+docker compose up -d
+# UI:  http://localhost:8080
+# API: http://localhost:8000</code></pre>
+        <p>
+            For pinned releases, pull pre-built images from GHCR:
+        </p>
+<pre><code>docker pull ghcr.io/harshithsunku/proxkey-backend:latest
+docker pull ghcr.io/harshithsunku/proxkey-frontend:latest</code></pre>
+        <p>
+            Both images are multi-arch (linux/amd64 + linux/arm64). The
+            <code>:latest</code> tag tracks the most recent tagged release;
+            <code>:main</code> follows the <code>main</code> branch. Pin to a
+            specific version with <code>:0.1.0</code> &amp;c.
+        </p>
+
+        <h2 id="ci">CI</h2>
+        <p>
+            <a href="https://github.com/harshithsunku/proxkey/blob/main/.github/workflows/build.yml"><code>.github/workflows/build.yml</code></a>
+            builds backend + frontend images for <code>linux/amd64</code> and
+            <code>linux/arm64</code> on every push to <code>main</code> and on
+            pull requests. Tagged pushes (<code>v*</code>) stitch the per-arch
+            tags into multi-arch manifests and create a GitHub Release with
+            <code>docker-compose.yml</code> attached.
+        </p>
+        <p>
+            <a href="https://github.com/harshithsunku/proxkey/blob/main/.github/workflows/pages.yml"><code>.github/workflows/pages.yml</code></a>
+            publishes this static site from <code>docs/</code> to GitHub Pages.
+        </p>
+
+        <h2 id="trouble">Troubleshooting</h2>
+
+        <h3 id="trouble-conn"><code>/api/hosts/connection</code> returns 401</h3>
+        <p>The API token ID or secret is wrong. Recreate the token with <code>pveum user token add ...</code> and double-check the ID is the full <code>user@realm!tokenname</code> form.</p>
+
+        <h3 id="trouble-perm"><code>pct exec</code> returns "Permission denied"</h3>
+        <p>The API token needs <code>PVEAdmin</code> on <code>/vms</code>, not just <code>PVEAuditor</code>. Re-run <code>pveum aclmod /vms -user ... -role PVEAdmin</code>.</p>
+
+        <h3 id="trouble-qemu">QEMU host shows no IP / <code>qm guest exec</code> fails</h3>
+        <p>The VM needs <code>qemu-guest-agent</code> installed and the agent option enabled in the VM config: <code>qm set &lt;vmid&gt; --agent 1</code>. Then start the agent inside the guest.</p>
+
+        <h3 id="trouble-ssh">Remote mode hangs on <code>sshpass</code></h3>
+        <p>ProxKey is trying to SSH to the PVE node. Make sure <code>PROXMOX_SSH_PASSWORD</code> is set and the node accepts root password logins, or run ProxKey directly on the Proxmox node and leave <code>PROXMOX_SSH_PASSWORD</code> empty.</p>
+
+        <h3 id="trouble-ip">LXC IP missing for a running container</h3>
+        <p>The IP-discovery API only works for running containers <em>and</em> only after the network stack has come up. Wait ~5 seconds after start; if it still doesn't appear, check <code>pct exec &lt;vmid&gt; -- ip a</code> on the node.</p>
+
+        <h3 id="trouble-dup">Same key shows up twice in <code>authorized_keys</code></h3>
+        <p>Shouldn't happen — the injector <code>grep -qF</code>s first. If it does, the deployed key probably has trailing whitespace or a comment that drifts between deploys. Normalize the key in the UI (strip extra whitespace, fix the comment) and re-deploy.</p>
+
+        <h3 id="trouble-hook">Hookscript doesn't fire</h3>
+        <p>Check <code>journalctl -u pve-container@&lt;vmid&gt;</code> on the node. The hookscript runs as part of the container start lifecycle; if it's not in <code>/var/lib/vz/snippets/</code> with the executable bit set, Proxmox silently skips it.</p>
+
+        <h2 id="layout">Project layout</h2>
+<pre><code>proxkey/
+├── backend/                   # FastAPI backend
+│   └── app/
+│       ├── main.py
+│       ├── config.py
+│       ├── database.py
+│       ├── models.py
+│       ├── routers/           # hosts, keys, deploy, hooks
+│       └── services/          # proxmox client + injector
+├── frontend/                  # React 19 + Vite + Tailwind v4 SPA
+│   └── src/
+│       ├── App.tsx
+│       ├── api/               # client, types, hooks
+│       ├── components/        # Dashboard, HostGrid, KeyManager, AuditLog, ...
+│       └── store/app.ts
+├── docs/                      # GitHub Pages docs site (this)
+├── docker-compose.yml
+├── .github/workflows/
+│   ├── build.yml              # multi-arch images + GHCR push + release
+│   └── pages.yml              # GitHub Pages deploy
+├── VERSION
+├── LICENSE (MIT)
+├── README.md
+└── CLAUDE.md</code></pre>
+    </main>
+
+    <aside class="toc">
+        <div class="toc-label">On this page</div>
+        <ul>
+            <li><a href="#env">Environment</a></li>
+            <li><a href="#token">Proxmox token</a></li>
+            <li><a href="#http-api">HTTP API</a></li>
+            <li><a href="#hookscript">Hookscript</a></li>
+            <li><a href="#deploy">Docker deploy</a></li>
+            <li><a href="#ci">CI</a></li>
+            <li><a href="#trouble">Troubleshooting</a></li>
+            <li><a href="#layout">Project layout</a></li>
+        </ul>
+    </aside>
+</div>
+
+<footer>
+    <div class="foot-row">
+        <a href="https://github.com/harshithsunku/proxkey" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/harshithsunku/proxkey/releases/latest" target="_blank" rel="noopener">Releases</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="reference.html">Reference</a>
+    </div>
+    <div>Open source under the MIT License.</div>
+</footer>
+
+<script src="assets/docs.js"></script>
+</body>
+</html>

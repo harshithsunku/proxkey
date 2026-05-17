@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-label="ProxKey architecture diagram">
+  <title>ProxKey architecture</title>
+  <defs>
+    <linearGradient id="abg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b0f14"/>
+      <stop offset="1" stop-color="#11182a"/>
+    </linearGradient>
+    <linearGradient id="leftPanel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161b22"/>
+      <stop offset="1" stop-color="#0d1117"/>
+    </linearGradient>
+    <linearGradient id="rightPanel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#18202d"/>
+      <stop offset="1" stop-color="#0d1421"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#58a6ff"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3fb950"/>
+    </marker>
+    <marker id="arrowPurple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c084fc"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="620" fill="url(#abg)"/>
+
+  <!-- Title bar -->
+  <text x="40" y="44" font-family="system-ui, -apple-system, Segoe UI, sans-serif"
+        font-size="20" font-weight="700" fill="#f0f6fc">ProxKey data flow</text>
+  <text x="40" y="66" font-family="ui-monospace, 'SF Mono', Menlo, monospace"
+        font-size="12" fill="#6e7681">browser  →  fastapi  →  proxmox api  →  pct exec / qm guest exec  →  authorized_keys</text>
+
+  <!-- =============================================================== -->
+  <!-- PROXKEY HOST PANEL (left)                                        -->
+  <!-- =============================================================== -->
+  <g transform="translate(40, 100)">
+    <rect x="0" y="0" width="500" height="480" rx="14" fill="url(#leftPanel)" stroke="#30363d" stroke-width="1.5"/>
+
+    <!-- Header -->
+    <g font-family="ui-monospace, 'SF Mono', Menlo, monospace">
+      <circle cx="24" cy="26" r="5" fill="#f85149"/>
+      <circle cx="40" cy="26" r="5" fill="#d29922"/>
+      <circle cx="56" cy="26" r="5" fill="#3fb950"/>
+      <text x="500" y="30" text-anchor="end" font-size="12" fill="#6e7681">proxkey host · docker compose</text>
+    </g>
+    <line x1="0" y1="52" x2="500" y2="52" stroke="#30363d"/>
+    <text x="24" y="80" font-family="system-ui, sans-serif" font-size="16" font-weight="600" fill="#c9d1d9">PROXKEY HOST</text>
+
+    <!-- Browser -->
+    <g transform="translate(60, 108)">
+      <rect x="0" y="0" width="380" height="60" rx="10" fill="#1a0d1f" stroke="#4b2155"/>
+      <text x="20" y="26" font-family="ui-monospace, monospace" font-size="14" fill="#c084fc">Browser · React 19 SPA</text>
+      <text x="20" y="46" font-family="ui-monospace, monospace" font-size="11" fill="#8b949e">tabs: dashboard · hosts · keys · audit · nginx :8080</text>
+    </g>
+
+    <line x1="250" y1="168" x2="250" y2="196" stroke="#c084fc" stroke-width="2" marker-end="url(#arrowPurple)"/>
+    <text x="262" y="188" font-family="ui-monospace, monospace" font-size="10" fill="#6e7681">/api proxied</text>
+
+    <!-- Backend -->
+    <g transform="translate(60, 204)">
+      <rect x="0" y="0" width="380" height="94" rx="10" fill="#0d1b2e" stroke="#264773"/>
+      <text x="20" y="26" font-family="ui-monospace, monospace" font-size="14" fill="#58a6ff">FastAPI · uvicorn :8000</text>
+      <text x="20" y="48" font-family="ui-monospace, monospace" font-size="11" fill="#8b949e">• routers: hosts · keys · deploy · hooks</text>
+      <text x="20" y="64" font-family="ui-monospace, monospace" font-size="11" fill="#8b949e">• proxmoxer client · injector service</text>
+      <text x="20" y="80" font-family="ui-monospace, monospace" font-size="11" fill="#8b949e">• base64 framing for shell-safe commands</text>
+    </g>
+
+    <line x1="250" y1="298" x2="250" y2="326" stroke="#58a6ff" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="262" y="318" font-family="ui-monospace, monospace" font-size="10" fill="#6e7681">SQLModel</text>
+
+    <!-- SQLite -->
+    <g transform="translate(60, 334)">
+      <rect x="0" y="0" width="380" height="74" rx="10" fill="#201a0d" stroke="#5a4520"/>
+      <text x="20" y="26" font-family="ui-monospace, monospace" font-size="14" fill="#d29922">SQLite · /data/proxkey.db</text>
+      <text x="20" y="46" font-family="ui-monospace, monospace" font-size="11" fill="#8b949e">SSHKey · KeyDeployment · AuditLog</text>
+      <text x="20" y="62" font-family="ui-monospace, monospace" font-size="11" fill="#8b949e">mounted as named docker volume</text>
+    </g>
+
+    <!-- Arrow leaving the panel (backend → proxmox api) -->
+    <line x1="440" y1="252" x2="490" y2="252" stroke="#3fb950" stroke-width="2" marker-end="url(#arrowGreen)"/>
+  </g>
+
+  <!-- =============================================================== -->
+  <!-- API LINK (middle)                                                 -->
+  <!-- =============================================================== -->
+  <g transform="translate(540, 230)">
+    <rect x="0" y="0" width="120" height="46" rx="8" fill="#0b1f14" stroke="#2a5a36"/>
+    <text x="60" y="20" text-anchor="middle" font-family="ui-monospace, monospace"
+          font-size="11" fill="#3fb950">HTTPS :8006</text>
+    <text x="60" y="36" text-anchor="middle" font-family="ui-monospace, monospace"
+          font-size="10" fill="#6e7681">api token auth</text>
+  </g>
+
+  <!-- Optional SSH tunnel -->
+  <g transform="translate(540, 320)">
+    <rect x="0" y="0" width="120" height="46" rx="8" fill="#1a0d1f" stroke="#4b2155"/>
+    <text x="60" y="20" text-anchor="middle" font-family="ui-monospace, monospace"
+          font-size="11" fill="#c084fc">SSH :22</text>
+    <text x="60" y="36" text-anchor="middle" font-family="ui-monospace, monospace"
+          font-size="10" fill="#6e7681">remote mode only</text>
+  </g>
+
+  <!-- Dotted connection between panels -->
+  <path d="M 540 252 L 660 252" stroke="#3fb950" stroke-width="2" fill="none" stroke-dasharray="4 4" marker-end="url(#arrowGreen)"/>
+  <path d="M 540 342 L 660 342" stroke="#c084fc" stroke-width="2" fill="none" stroke-dasharray="4 4" marker-end="url(#arrowPurple)"/>
+
+  <!-- =============================================================== -->
+  <!-- PROXMOX NODE PANEL (right)                                        -->
+  <!-- =============================================================== -->
+  <g transform="translate(660, 100)">
+    <rect x="0" y="0" width="500" height="480" rx="14" fill="url(#rightPanel)" stroke="#30363d" stroke-width="1.5"/>
+
+    <g font-family="ui-monospace, monospace">
+      <circle cx="24" cy="26" r="5" fill="#f85149"/>
+      <circle cx="40" cy="26" r="5" fill="#d29922"/>
+      <circle cx="56" cy="26" r="5" fill="#3fb950"/>
+      <text x="500" y="30" text-anchor="end" font-size="12" fill="#6e7681">proxmox VE 7 / 8 · node</text>
+    </g>
+    <line x1="0" y1="52" x2="500" y2="52" stroke="#30363d"/>
+    <text x="24" y="80" font-family="system-ui, sans-serif" font-size="16" font-weight="600" fill="#c9d1d9">PROXMOX NODE</text>
+
+    <!-- Proxmox API -->
+    <g transform="translate(60, 108)">
+      <rect x="0" y="0" width="380" height="60" rx="10" fill="#0f1d14" stroke="#2a5a36"/>
+      <text x="20" y="24" font-family="ui-monospace, monospace" font-size="14" fill="#3fb950">Proxmox API</text>
+      <text x="20" y="44" font-family="ui-monospace, monospace" font-size="11" fill="#8b949e">/nodes /lxc /qemu · interfaces · agent</text>
+    </g>
+    <line x1="150" y1="168" x2="150" y2="196" stroke="#58a6ff" stroke-width="2" marker-end="url(#arrow)"/>
+    <line x1="350" y1="168" x2="350" y2="196" stroke="#58a6ff" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <!-- pct exec -->
+    <g transform="translate(40, 204)">
+      <rect x="0" y="0" width="200" height="74" rx="10" fill="#0d1b2e" stroke="#264773"/>
+      <text x="14" y="24" font-family="ui-monospace, monospace" font-size="13" fill="#58a6ff">pct exec</text>
+      <text x="14" y="44" font-family="ui-monospace, monospace" font-size="11" fill="#8b949e">LXC injection</text>
+      <text x="14" y="60" font-family="ui-monospace, monospace" font-size="11" fill="#8b949e">bash -c 'b64 | base64 -d | bash'</text>
+    </g>
+
+    <!-- qm guest exec -->
+    <g transform="translate(260, 204)">
+      <rect x="0" y="0" width="200" height="74" rx="10" fill="#201a0d" stroke="#5a4520"/>
+      <text x="14" y="24" font-family="ui-monospace, monospace" font-size="13" fill="#d29922">qm guest exec</text>
+      <text x="14" y="44" font-family="ui-monospace, monospace" font-size="11" fill="#8b949e">QEMU injection</text>
+      <text x="14" y="60" font-family="ui-monospace, monospace" font-size="11" fill="#8b949e">needs qemu-guest-agent</text>
+    </g>
+
+    <line x1="140" y1="278" x2="140" y2="306" stroke="#58a6ff" stroke-width="2" marker-end="url(#arrow)"/>
+    <line x1="360" y1="278" x2="360" y2="306" stroke="#58a6ff" stroke-width="2" marker-end="url(#arrow)"/>
+
+    <!-- LXC guest -->
+    <g transform="translate(40, 314)">
+      <rect x="0" y="0" width="200" height="70" rx="10" fill="#0f1d14" stroke="#2a5a36"/>
+      <text x="14" y="24" font-family="ui-monospace, monospace" font-size="13" fill="#3fb950">LXC container</text>
+      <text x="14" y="44" font-family="ui-monospace, monospace" font-size="11" fill="#8b949e">/root/.ssh/</text>
+      <text x="14" y="58" font-family="ui-monospace, monospace" font-size="11" fill="#3fb950">authorized_keys ✓</text>
+    </g>
+
+    <!-- QEMU guest -->
+    <g transform="translate(260, 314)">
+      <rect x="0" y="0" width="200" height="70" rx="10" fill="#0f1d14" stroke="#2a5a36"/>
+      <text x="14" y="24" font-family="ui-monospace, monospace" font-size="13" fill="#3fb950">QEMU VM</text>
+      <text x="14" y="44" font-family="ui-monospace, monospace" font-size="11" fill="#8b949e">/root/.ssh/</text>
+      <text x="14" y="58" font-family="ui-monospace, monospace" font-size="11" fill="#3fb950">authorized_keys ✓</text>
+    </g>
+
+    <!-- Hookscript receiver -->
+    <g transform="translate(60, 400)">
+      <rect x="0" y="0" width="380" height="58" rx="10" fill="#1a0d1f" stroke="#4b2155"/>
+      <text x="20" y="24" font-family="ui-monospace, monospace" font-size="13" fill="#c084fc">hookscript · post-start</text>
+      <text x="20" y="44" font-family="ui-monospace, monospace" font-size="11" fill="#8b949e">curl POST /api/hooks/lxc-started · auto-inject globals</text>
+    </g>
+  </g>
+
+  <!-- Hookscript loops back to the backend -->
+  <path d="M 720 430 C 600 430, 540 410, 540 280" stroke="#c084fc" stroke-width="2" fill="none" stroke-dasharray="4 4" marker-end="url(#arrowPurple)"/>
+
+  <!-- Caption under right panel -->
+  <g transform="translate(910, 600)">
+    <text x="0" y="0" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#6e7681">idempotent · grep -qF before append · audit log on every action</text>
+  </g>
+</svg>

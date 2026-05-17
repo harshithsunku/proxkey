@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture &middot; ProxKey</title>
+<meta name="description" content="How ProxKey discovers hosts via the Proxmox API and injects SSH keys via pct exec / qm guest exec — zero-bootstrap, idempotent, base64-framed.">
+<meta property="og:title" content="Architecture · ProxKey">
+<meta property="og:description" content="How ProxKey discovers hosts via the Proxmox API and injects SSH keys via pct exec / qm guest exec.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://harshithsunku.github.io/proxkey/architecture.html">
+<meta property="og:image" content="https://harshithsunku.github.io/proxkey/hero.svg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Architecture · ProxKey">
+<meta name="twitter:description" content="Browser → FastAPI → Proxmox API → pct exec / qm guest exec → authorized_keys.">
+<meta name="twitter:image" content="https://harshithsunku.github.io/proxkey/hero.svg">
+<meta name="theme-color" content="#0f1117">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2338bdf8'/%3E%3Cpath fill='%230f1117' d='M11 9.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm0 2a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm3.6 1.5h9.4v2.5h-2v2h-2v-2h-2v2.5h-2v-2.5h-1.4a5.55 5.55 0 0 0 0-2.5z'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<nav class="topnav">
+    <div class="topnav-inner">
+        <a class="brand" href="./">Prox<span class="a">Key</span></a>
+        <div class="topnav-links">
+            <a href="index.html#features">Features</a>
+            <a href="index.html#quickstart">Quick start</a>
+            <a href="architecture.html" class="active">Architecture</a>
+            <a href="reference.html">Reference</a>
+            <a href="https://github.com/harshithsunku/proxkey" target="_blank" rel="noopener">GitHub</a>
+        </div>
+        <div class="topnav-right">
+            <a class="btn btn-ghost" href="https://github.com/harshithsunku/proxkey/releases/latest" target="_blank" rel="noopener">Download</a>
+            <button class="theme-btn" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="4"></circle>
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<div class="layout-with-toc">
+    <main class="prose">
+        <span class="eyebrow">Internals</span>
+        <h1 style="font-size: clamp(32px, 4vw, 44px); margin-bottom: 12px;">Architecture</h1>
+        <p class="lead" style="margin-bottom: 36px;">
+            One sentence: <strong>browser &rarr; React UI &rarr; FastAPI &rarr; Proxmox API
+            &rarr; <code>pct exec</code> / <code>qm guest exec</code> &rarr; guest's
+            <code>authorized_keys</code>.</strong>
+        </p>
+
+        <div class="diagram">
+            <img src="architecture.svg" alt="ProxKey architecture: browser hits FastAPI; backend talks to Proxmox API; Proxmox executes inside the guest via pct exec or qm guest exec; the inject script writes to authorized_keys">
+            <div class="diagram-caption">The browser drives the UI. The backend orchestrates Proxmox. Proxmox does the privileged work inside the guest.</div>
+        </div>
+
+        <h2 id="browser">In the browser</h2>
+        <p>
+            A single-page React 19 app served by nginx from the frontend container.
+            Nginx proxies <code>/api</code> to the backend so the SPA only needs one
+            origin. Four top-level tabs:
+        </p>
+        <ul>
+            <li><strong>Dashboard</strong> &mdash; stats cards, host-type breakdown, key-coverage donut, deployment metrics.</li>
+            <li><strong>Hosts</strong> &mdash; the host grid with search, filter, sort, status badges, and per-host SSH copy.</li>
+            <li><strong>SSH Keys</strong> &mdash; the key library with add / edit / delete and fingerprint copy.</li>
+            <li><strong>Audit Log</strong> &mdash; every deploy, revoke, and key CRUD event with timestamp, host, key, and outcome.</li>
+        </ul>
+        <p>
+            Stack: React 19, TypeScript, Vite, Tailwind CSS v4, TanStack Query for
+            data fetching and cache, Zustand for cross-component selection state.
+        </p>
+
+        <h2 id="backend">In the backend</h2>
+        <p>
+            FastAPI + SQLModel + proxmoxer. Lifespan creates the DB tables, wires
+            the Proxmox client from the loaded settings, and registers four routers:
+        </p>
+        <ul>
+            <li><code>hosts.py</code> &mdash; discovery, connection probe, per-host key inspection.</li>
+            <li><code>keys.py</code> &mdash; CRUD over <code>SSHKey</code>; fingerprint computed on save.</li>
+            <li><code>deploy.py</code> &mdash; deploy, revoke, dashboard stats, deployment status, audit log.</li>
+            <li><code>hooks.py</code> &mdash; receiver for Proxmox hookscripts so containers can auto-inject at boot.</li>
+        </ul>
+        <p>
+            State lives in a single SQLite database (<code>/data/proxkey.db</code>
+            inside the container, mounted as a volume). Three tables: the key
+            library, per-host deployment records, and the audit log.
+        </p>
+
+        <h2 id="discovery">Host discovery</h2>
+        <p>
+            <code>GET /api/hosts</code> walks the Proxmox API in two passes:
+        </p>
+        <ol>
+            <li><code>/nodes/{node}/lxc</code> returns every container with VMID, name, and status.</li>
+            <li><code>/nodes/{node}/qemu</code> returns every VM with the same fields.</li>
+        </ol>
+        <p>
+            For each <em>running</em> host, ProxKey then fetches its IP address:
+        </p>
+        <ul>
+            <li>LXC &rarr; <code>/nodes/{node}/lxc/{vmid}/interfaces</code></li>
+            <li>QEMU &rarr; <code>/nodes/{node}/qemu/{vmid}/agent/network-get-interfaces</code> (needs <code>qemu-guest-agent</code>)</li>
+        </ul>
+        <p>
+            Link-local (<code>fe80::</code>) and loopback addresses are filtered out
+            before the host card surfaces them. The discovery result is sent down
+            in one JSON payload &mdash; no SSE here, the UI just refetches via
+            TanStack Query when it needs fresh state.
+        </p>
+
+        <h2 id="inject">Injection path</h2>
+        <p>
+            The interesting part. ProxKey can run on the Proxmox node directly or
+            anywhere with API access. Either way, the wire ends at
+            <code>pct exec</code> / <code>qm guest exec</code> inside the guest.
+        </p>
+
+        <h3 id="dual-mode">Dual execution paths</h3>
+        <ul>
+            <li><strong>On the node:</strong> the backend runs <code>pct exec &lt;vmid&gt; -- bash -c &lt;cmd&gt;</code> via subprocess. No SSH involved.</li>
+            <li><strong>Remote:</strong> the backend wraps that in <code>sshpass -p $PROXMOX_SSH_PASSWORD ssh root@&lt;node&gt; ...</code>. Same command, one extra hop.</li>
+        </ul>
+        <p>
+            Mode is implicit: <code>PROXMOX_SSH_PASSWORD</code> set &rArr; remote
+            mode. The injector doesn't care which side it's on &mdash; both code
+            paths converge in <code>services/injector.py</code>.
+        </p>
+
+        <h3 id="base64">Base64 transport</h3>
+        <p>
+            Injection scripts cross <em>two or three</em> shell boundaries: the
+            local subprocess, optionally SSH, then <code>pct exec</code>'s own
+            <code>bash -c</code>. To stop quotes and dollars from getting mangled,
+            the script is base64-encoded and the wire just carries the encoded blob:
+        </p>
+<pre><code>SCRIPT_B64="$(base64 -w0 &lt;&lt;'EOF'
+mkdir -p /root/.ssh &amp;&amp; chmod 700 /root/.ssh
+touch /root/.ssh/authorized_keys &amp;&amp; chmod 600 /root/.ssh/authorized_keys
+grep -qF "$KEY" /root/.ssh/authorized_keys || echo "$KEY" &gt;&gt; /root/.ssh/authorized_keys
+EOF
+)"
+pct exec "$VMID" -- bash -c "echo '$SCRIPT_B64' | base64 -d | bash"</code></pre>
+        <p>
+            The actual script is short, defensive, and idempotent. The
+            <code>grep -qF</code> check makes re-deploys safe; the <code>chmod</code>
+            calls fix permissions on every run rather than assuming the directory
+            already exists.
+        </p>
+
+        <h3 id="revoke">Revocation</h3>
+        <p>
+            Same execution model. The revoke script deletes only the matching line
+            using <code>sed</code> with a fixed-string match, so it can't damage
+            unrelated entries. Revoking a key that isn't there is a no-op
+            &mdash; the audit log still records the attempt.
+        </p>
+
+        <h3 id="hookscript">Auto-inject on start</h3>
+        <p>
+            A Proxmox hookscript on the node can POST to
+            <code>/api/hooks/lxc-started</code> in the <code>post-start</code>
+            phase. ProxKey looks up every key marked as <em>global</em> and
+            deploys them into the just-started container. Because injection is
+            idempotent, the hookscript can fire on every start without consequence.
+        </p>
+
+        <h2 id="data-model">Data model</h2>
+        <p>
+            Three SQLModel tables; everything else is derived.
+        </p>
+        <table class="ref">
+            <thead><tr><th>Table</th><th>Purpose</th><th>Notable fields</th></tr></thead>
+            <tbody>
+                <tr><td><code>SSHKey</code></td><td>The key library</td><td><code>label</code>, <code>public_key</code>, <code>fingerprint</code>, <code>is_global</code></td></tr>
+                <tr><td><code>KeyDeployment</code></td><td>Per-host deploy state</td><td><code>vmid</code>, <code>key_id</code>, <code>deployed_at</code>, <code>status</code></td></tr>
+                <tr><td><code>AuditLog</code></td><td>Every deploy/revoke/CRUD</td><td><code>action</code>, <code>vmid</code>, <code>key_id</code>, <code>outcome</code>, <code>detail</code>, <code>at</code></td></tr>
+            </tbody>
+        </table>
+        <p>
+            SQLModel auto-creates the tables on first startup. The file lives at
+            <code>/data/proxkey.db</code> inside the backend container and is
+            mounted as a Docker named volume so it survives restarts.
+        </p>
+
+        <h2 id="deploy">Deployment</h2>
+        <p>
+            Two containers behind a single host port:
+        </p>
+        <ul>
+            <li><strong>backend</strong> &mdash; <code>python:3.11-slim</code> with the FastAPI app under <code>uvicorn</code>, listening on <code>:8000</code>.</li>
+            <li><strong>frontend</strong> &mdash; multi-stage build: <code>node:20</code> compiles the Vite app, then <code>nginx:alpine</code> serves the static output and proxies <code>/api</code> to the backend.</li>
+        </ul>
+        <p>
+            <code>docker-compose.yml</code> wires them together with a shared
+            named volume for the SQLite file. Configuration lives entirely in
+            <code>.env</code> &mdash; the images are credential-free.
+        </p>
+
+        <h2 id="ci">CI &amp; releases</h2>
+        <p>
+            <a href="https://github.com/harshithsunku/proxkey/blob/main/.github/workflows/build.yml"><code>.github/workflows/build.yml</code></a>
+            builds the backend and frontend images for <code>linux/amd64</code>
+            and <code>linux/arm64</code>, pushes them to GHCR on every push to
+            <code>main</code>, and on tagged pushes (<code>v*</code>) stitches
+            per-arch tags into multi-arch manifests and creates a GitHub Release
+            with the <code>docker-compose.yml</code> attached.
+        </p>
+        <p>
+            <a href="https://github.com/harshithsunku/proxkey/blob/main/.github/workflows/pages.yml"><code>.github/workflows/pages.yml</code></a>
+            publishes this static site from <code>docs/</code> to GitHub Pages on
+            every push to <code>main</code>.
+        </p>
+
+        <h2 id="limits">Known limits</h2>
+        <ul>
+            <li>Single Proxmox cluster per instance &mdash; one <code>PROXMOX_HOST</code> + <code>PROXMOX_NODE</code>. Multi-cluster fan-out is not modeled yet.</li>
+            <li>QEMU IP + exec require <code>qemu-guest-agent</code> running in the guest. There is no fallback if it isn't.</li>
+            <li>Remote mode authenticates to the PVE node with a password (<code>sshpass</code>). Key-based SSH-to-node is on the roadmap.</li>
+            <li>LXC IP discovery only works after the network stack is up &mdash; expect a ~5-second blank window after start.</li>
+            <li>Only writes to <code>/root/.ssh/authorized_keys</code> by default. Per-user injection is planned.</li>
+        </ul>
+    </main>
+
+    <aside class="toc">
+        <div class="toc-label">On this page</div>
+        <ul>
+            <li><a href="#browser">In the browser</a></li>
+            <li><a href="#backend">In the backend</a></li>
+            <li><a href="#discovery">Host discovery</a></li>
+            <li><a href="#inject">Injection path</a></li>
+            <li><a href="#dual-mode">Dual execution</a></li>
+            <li><a href="#base64">Base64 transport</a></li>
+            <li><a href="#revoke">Revocation</a></li>
+            <li><a href="#hookscript">Auto-inject hookscript</a></li>
+            <li><a href="#data-model">Data model</a></li>
+            <li><a href="#deploy">Deployment</a></li>
+            <li><a href="#ci">CI &amp; releases</a></li>
+            <li><a href="#limits">Known limits</a></li>
+        </ul>
+    </aside>
+</div>
+
+<footer>
+    <div class="foot-row">
+        <a href="https://github.com/harshithsunku/proxkey" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/harshithsunku/proxkey/releases/latest" target="_blank" rel="noopener">Releases</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="reference.html">Reference</a>
+    </div>
+    <div>Open source under the MIT License.</div>
+</footer>
+
+<script src="assets/docs.js"></script>
+</body>
+</html>

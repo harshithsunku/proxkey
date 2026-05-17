@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProxKey — SSH Key Manager for Proxmox LXC &amp; VMs</title>
+<meta name="description" content="Self-hosted web app that distributes SSH public keys across Proxmox LXC containers and QEMU VMs via the Proxmox API — no prior SSH access required.">
+<meta property="og:title" content="ProxKey — SSH Key Manager for Proxmox LXC &amp; VMs">
+<meta property="og:description" content="Create a container. SSH in immediately. ProxKey injects keys via pct exec / qm guest exec — zero-bootstrap, idempotent, auditable.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://harshithsunku.github.io/proxkey/">
+<meta property="og:image" content="https://harshithsunku.github.io/proxkey/hero.svg">
+<meta property="og:image:alt" content="ProxKey — SSH key manager for Proxmox LXC and VMs">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="ProxKey — SSH Key Manager for Proxmox LXC &amp; VMs">
+<meta name="twitter:description" content="Zero-bootstrap SSH key distribution for Proxmox. Web UI + Proxmox API + pct exec / qm guest exec. Docker Compose deploy.">
+<meta name="twitter:image" content="https://harshithsunku.github.io/proxkey/hero.svg">
+<meta name="theme-color" content="#0f1117">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2338bdf8'/%3E%3Cpath fill='%230f1117' d='M11 9.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm0 2a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm3.6 1.5h9.4v2.5h-2v2h-2v-2h-2v2.5h-2v-2.5h-1.4a5.55 5.55 0 0 0 0-2.5z'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<nav class="topnav">
+    <div class="topnav-inner">
+        <a class="brand" href="./">Prox<span class="a">Key</span></a>
+        <div class="topnav-links">
+            <a href="index.html#features">Features</a>
+            <a href="index.html#quickstart">Quick start</a>
+            <a href="architecture.html">Architecture</a>
+            <a href="reference.html">Reference</a>
+            <a href="https://github.com/harshithsunku/proxkey" target="_blank" rel="noopener">GitHub</a>
+        </div>
+        <div class="topnav-right">
+            <a class="btn btn-ghost" href="https://github.com/harshithsunku/proxkey/releases/latest" target="_blank" rel="noopener">Download</a>
+            <button class="theme-btn" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="4"></circle>
+                    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<header class="hero">
+    <div class="hero-inner">
+        <div>
+            <span class="eyebrow">Open source &middot; MIT</span>
+            <h1>SSH keys, on every container,<br><span class="grad">the moment it boots.</span></h1>
+            <p class="hero-lede">
+                ProxKey distributes SSH public keys across Proxmox LXC containers and
+                QEMU VMs via the Proxmox API &mdash; <strong>no prior SSH access required.</strong>
+                Create a container, click deploy, you're in.
+            </p>
+            <div class="hero-actions">
+                <a class="btn btn-primary" href="#quickstart">Get started &rarr;</a>
+                <a class="btn btn-ghost" href="https://github.com/harshithsunku/proxkey" target="_blank" rel="noopener">View on GitHub</a>
+            </div>
+            <div class="hero-badges">
+                <img alt="license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square">
+                <img alt="python" src="https://img.shields.io/badge/python-3.11%2B-58a6ff?style=flat-square">
+                <img alt="proxmox" src="https://img.shields.io/badge/proxmox-VE_7%2B%20%7C_8%2B-c084fc?style=flat-square">
+                <img alt="deploy" src="https://img.shields.io/badge/deploy-docker_compose-d29922?style=flat-square">
+                <img alt="bootstrap" src="https://img.shields.io/badge/bootstrap-zero--ssh-f85149?style=flat-square">
+            </div>
+        </div>
+        <div class="hero-shot">
+            <img src="hero.svg" alt="ProxKey hero illustration with key distribution flow" loading="eager">
+        </div>
+    </div>
+</header>
+
+<section class="section" id="features">
+    <div class="container">
+        <span class="eyebrow">What it does</span>
+        <h2>One tool, every key, every container.</h2>
+        <p class="section-sub">
+            Proxmox API for discovery, <code>pct exec</code> / <code>qm guest exec</code>
+            for injection. Idempotent, auditable, and zero-bootstrap by design.
+        </p>
+        <div class="features">
+            <div class="feature">
+                <div class="feature-icon">&#9889;</div>
+                <h3>Zero-bootstrap injection</h3>
+                <p>Keys go in through Proxmox's <code>pct exec</code> and <code>qm guest exec</code>, not via SSH. Brand-new containers with no SSH access yet are first-class.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">&#128269;</div>
+                <h3>Auto-discovery</h3>
+                <p>Every LXC and QEMU VM on the node appears in the host grid. Running hosts surface their IP addresses automatically via the Proxmox API.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">&#128104;&#8205;&#128187;</div>
+                <h3>Idempotent &amp; safe</h3>
+                <p>The inject script <code>grep -qF</code>s before appending. Deploying the same key twice is a no-op. Revoke removes only matching lines.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">&#128241;</div>
+                <h3>Live dashboard</h3>
+                <p>Stats cards, host breakdown by type and status, key-coverage donut, and per-deployment metrics &mdash; updates as you deploy.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">&#128737;</div>
+                <h3>Hookscript receiver</h3>
+                <p>A Proxmox hookscript that POSTs to <code>/api/hooks/lxc-started</code> auto-injects every global key the moment a container boots.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">&#129518;</div>
+                <h3>Per-host inspect</h3>
+                <p>See exactly which keys live on any host &mdash; pulled live from the guest's <code>authorized_keys</code> via the same exec channel.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">&#9881;</div>
+                <h3>Search, filter, sort</h3>
+                <p>Find hosts by name, VMID, or IP. Filter by status or type. Sort by any column. One-click <code>ssh root@&lt;ip&gt;</code> copy from the card.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">&#128190;</div>
+                <h3>Audit log</h3>
+                <p>Every deploy, revoke, and key CRUD event lands in the audit table with timestamp, host, key, and outcome.</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">&#128261;</div>
+                <h3>Dual execution paths</h3>
+                <p>Runs on the PVE node? <code>pct exec</code> direct. Runs anywhere else? SSH to the node first, then <code>pct exec</code>. Same wire, one extra hop.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section" id="quickstart">
+    <div class="container">
+        <span class="eyebrow">Quick start</span>
+        <h2>Up and running in under a minute.</h2>
+        <p class="section-sub">
+            One <code>.env</code> file, one <code>docker compose up</code>. Or build
+            from source if you want to hack on it.
+        </p>
+
+        <div data-tabs>
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="docker">Docker Compose</button>
+                <button class="tab-btn" data-tab="hookscript">Auto-inject hookscript</button>
+                <button class="tab-btn" data-tab="source">From source</button>
+            </div>
+
+            <div class="tab-panel active" data-tab="docker">
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-num">1</div>
+                        <div class="step-body">
+                            <h3>Clone &amp; configure</h3>
+                            <p>Copy the example env file and fill in your Proxmox host and API token.</p>
+<pre><code>git clone https://github.com/harshithsunku/proxkey.git
+cd proxkey
+cp .env.example .env
+# edit .env: PROXMOX_HOST, PROXMOX_TOKEN_ID, PROXMOX_TOKEN_SECRET, PROXMOX_NODE</code></pre>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">2</div>
+                        <div class="step-body">
+                            <h3>Create an API token on Proxmox</h3>
+                            <p>On the PVE node, give ProxKey just enough to discover hosts and exec inside them.</p>
+<pre><code>pveum user add proxkey@pve
+pveum aclmod /        -user proxkey@pve -role PVEAuditor
+pveum aclmod /vms     -user proxkey@pve -role PVEAdmin
+pveum user token add proxkey@pve proxkey --privsep 0
+# copy the secret → PROXMOX_TOKEN_SECRET in .env</code></pre>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">3</div>
+                        <div class="step-body">
+                            <h3>Boot the stack</h3>
+                            <p>Backend + nginx-fronted frontend come up together. Open <code>http://localhost:8080</code>.</p>
+<pre><code>docker compose up -d
+# UI:  http://localhost:8080
+# API: http://localhost:8000  (Swagger at /docs)</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" data-tab="hookscript">
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-num">1</div>
+                        <div class="step-body">
+                            <h3>Drop a hookscript on the Proxmox node</h3>
+                            <p>One-liner that POSTs the VMID to ProxKey whenever a container moves into the <code>running</code> state.</p>
+<pre><code>cat &gt; /var/lib/vz/snippets/proxkey-hook.sh &lt;&lt;'EOF'
+#!/bin/bash
+VMID="$1"
+PHASE="$2"
+[ "$PHASE" = "post-start" ] || exit 0
+curl -fsS -X POST "http://proxkey-host:8000/api/hooks/lxc-started" \
+     -H "Content-Type: application/json" \
+     -d "{\"vmid\": ${VMID}}" || true
+EOF
+chmod +x /var/lib/vz/snippets/proxkey-hook.sh</code></pre>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">2</div>
+                        <div class="step-body">
+                            <h3>Attach the hookscript to your containers</h3>
+                            <p>Per-container, or as part of your provisioning template.</p>
+<pre><code>pct set &lt;vmid&gt; --hookscript local:snippets/proxkey-hook.sh</code></pre>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">3</div>
+                        <div class="step-body">
+                            <h3>Mark a key as "global" in the UI</h3>
+                            <p>Any container that boots with the hookscript attached now gets every global key written before the first login window opens.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-panel" data-tab="source">
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-num">1</div>
+                        <div class="step-body">
+                            <h3>Run the backend</h3>
+<pre><code>cd backend
+python -m venv .venv &amp;&amp; source .venv/bin/activate
+pip install -r requirements.txt
+cp ../.env.example .env
+uvicorn app.main:app --reload  # http://localhost:8000</code></pre>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">2</div>
+                        <div class="step-body">
+                            <h3>Run the frontend</h3>
+                            <p>Vite proxies <code>/api</code> to the backend automatically.</p>
+<pre><code>cd frontend
+npm install
+npm run dev  # http://localhost:5173</code></pre>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">3</div>
+                        <div class="step-body">
+                            <h3>Iterate</h3>
+                            <p>Backend autoreloads on save. The Vite dev server hot-reloads the UI. <code>/api/docs</code> on the backend has live Swagger.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="note" style="margin-top: 28px;">
+            <strong>Prerequisites.</strong> Proxmox VE 7+ or 8+; an API token with
+            <code>PVEAdmin</code> on <code>/vms</code>; QEMU VMs need
+            <code>qemu-guest-agent</code> running for IP discovery and
+            <code>qm guest exec</code>. If ProxKey runs <em>off</em> the PVE node, set
+            <code>PROXMOX_SSH_PASSWORD</code> so it can SSH in to call <code>pct exec</code>.
+        </div>
+    </div>
+</section>
+
+<section class="section" style="background: var(--bg-surface); border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle);">
+    <div class="container">
+        <div class="split-2">
+            <div>
+                <span class="eyebrow">Pipeline</span>
+                <h2>How a key travels.</h2>
+                <p style="color: var(--text-secondary); margin-bottom: 18px;">
+                    The browser hits the FastAPI backend. The backend talks to the
+                    Proxmox API via <code>proxmoxer</code> to discover hosts and call
+                    <code>pct exec</code> / <code>qm guest exec</code>. The injection
+                    script is base64-encoded before being piped through the exec
+                    channel so shell quoting can't mangle it. The script is idempotent:
+                    <code>grep -qF</code> before <code>echo &gt;&gt;</code>.
+                </p>
+                <p style="color: var(--text-secondary); margin-bottom: 22px;">
+                    Every deploy and revoke is recorded in SQLite &mdash; deployment
+                    state, audit log, and the key library all live in a single mounted
+                    volume.
+                </p>
+                <a class="btn btn-ghost" href="architecture.html">Read the architecture &rarr;</a>
+            </div>
+            <div class="diagram" style="margin: 0;">
+                <img src="architecture.svg" alt="ProxKey architecture diagram">
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <span class="eyebrow">Design rules</span>
+        <h2>Built to a short list.</h2>
+        <div class="features" style="margin-top: 28px;">
+            <div class="feature">
+                <h3>Zero-bootstrap, always</h3>
+                <p>If a feature needs prior SSH access to the guest, it doesn't belong here. The Proxmox API is the only injection channel.</p>
+            </div>
+            <div class="feature">
+                <h3>Idempotent everything</h3>
+                <p>Deploy twice, revoke twice, re-fire a hookscript &mdash; none of it should corrupt state or produce duplicates.</p>
+            </div>
+            <div class="feature">
+                <h3>Defensive shell</h3>
+                <p>Anything crossing SSH or <code>pct exec</code> is base64-framed. Never concatenate user input into a shell command.</p>
+            </div>
+            <div class="feature">
+                <h3>Generic &amp; open</h3>
+                <p>MIT-licensed. No proprietary names, IPs, credentials, or company-specific anything in code, docs, or history.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer>
+    <div class="foot-row">
+        <a href="https://github.com/harshithsunku/proxkey" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/harshithsunku/proxkey/releases/latest" target="_blank" rel="noopener">Releases</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="reference.html">Reference</a>
+        <a href="https://github.com/harshithsunku/proxkey/issues" target="_blank" rel="noopener">Issues</a>
+    </div>
+    <div>Open source under the MIT License.</div>
+</footer>
+
+<script src="assets/docs.js"></script>
+</body>
+</html>
